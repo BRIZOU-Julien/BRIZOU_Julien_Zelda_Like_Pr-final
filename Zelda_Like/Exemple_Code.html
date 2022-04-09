@@ -1,0 +1,1272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><title>Mon 1er jeu Phaser</title>
+    <script src="//cdn.jsdelivr.net/npm/phaser@3.51.0/dist/phaser.js">
+    </script>
+
+    <style type="text/css"> body 
+    
+        { margin: 0; 
+        }
+ 
+        #endGame{
+            display: none;
+            font-size: 100px;
+            color: red;
+            padding-top: 230px;
+            padding-left:110px ;
+            position:absolute;
+            z-index:1
+        }
+
+        
+    
+    </style>
+</head>
+<body>
+    <script type="text/javascript">
+
+        class menu extends Phaser.Scene{
+            constructor() {
+                super("menu");
+            }
+            preload(){
+                this.load.image('imagestart', 'assets/bouton_start.png')
+                this.load.image('boutonplay', 'assets/bouton_play.png')
+                this.load.image('boutonquit', 'assets/bouton_quit.png')
+            }
+            create (){
+                this.add.image(510, 290, 'imagestart');
+
+                this.cursors = this.input.keyboard.createCursorKeys();
+
+                var boutonplay = this.add.image(629, 215, 'boutonplay').setInteractive();
+
+                boutonplay.on('pointerdown', function (pointer) {
+
+                    this.scene.scene.start("Exterieur");
+
+                });
+
+                var boutonquit = this.add.image(399, 215, 'boutonquit').setInteractive();
+
+                boutonquit.on('pointerdown', function (pointer) {
+                    this.scene.scene.stop("menu");
+                });
+            }
+            update(){
+
+            }
+        };
+
+
+
+
+
+        class Exterieur extends Phaser.Scene{
+            constructor(){
+                super("Exterieur");
+        }
+
+        
+          
+
+        preload(){
+
+            this.load.image("jeudetuile", "assets/Tileset_Ecole.png");
+            this.load.image("Ecole", "assets/Ecole.png");
+            
+            // J'importe mes images de barre de vie
+            this.load.image("Health100", "assets/Health100.png");
+            this.load.image("Health75", "assets/Health75.png");
+            this.load.image("Health50", "assets/Health50.png");
+            this.load.image("Health25", "assets/Health25.png");
+            this.load.image("Health0", "assets/Health0.png");
+            // J'importe mes images d'inventaire
+            this.load.image("Coin0", "assets/Coin0.png")
+            this.load.image("Coin1", "assets/Coin1.png")
+            this.load.image("Coin2", "assets/Coin2.png")
+            this.load.image("Coin3", "assets/Coin3.png")
+
+            this.load.tilemapTiledJSON("carte", "map.json");  
+
+            this.load.spritesheet('persoDebut','assets/Spritesheet_Cahier_Prototype.png',
+            { frameWidth: 40, frameHeight: 40 });
+        
+            this.load.spritesheet('MonCrayon', 'assets/Animation_Crayon_Spritesheet.png',
+            { frameWidth: 32 ,frameHeight: 48 });
+        }
+
+
+
+        create (){
+            this.clavier = this.input.keyboard.addKeys('Z,Q,S,D');
+            this.cursors = this.input.keyboard.createCursorKeys(); 
+            
+            const carteDuNiveau = this.add.tilemap("carte");
+
+            // importer les TileSet 
+            const Tileset_Ecole = carteDuNiveau.addTilesetImage(
+                    "Tileset_Ecole",
+                    "jeudetuile"
+                    );  
+                    
+            const Ecole = carteDuNiveau.createLayer(
+                    "Ecole",
+                    Tileset_Ecole, 
+                    ); 
+
+            const plateformes = carteDuNiveau.createLayer(
+                    "Collision",
+                    Tileset_Ecole, 
+                    ); 
+
+            const teleportation = carteDuNiveau.createLayer(
+                    "teleportation",
+                    Tileset_Ecole, 
+                 ); 
+
+            const sleep = (milliseconds) => {
+                return new Promise(resolve => setTimeout(resolve, milliseconds));
+            }
+
+            
+            
+        
+            this.player = this.physics.add.sprite(1230,100,'persoDebut')    //1230 , 100    700, 570
+            this.ennemi = this.physics.add.sprite(1100,580,'MonCrayon')
+
+            plateformes.setCollisionByProperty({ estSolide: true });
+
+            teleportation.setCollisionByExclusion(-1, true);
+            this.physics.add.collider(this.player, teleportation, this.changeScene, null, this);
+           
+            this.physics.add.collider(this.player, plateformes);
+            this.physics.add.collider(this.player, this.ennemi, this.Touchplayer);
+            this.physics.add.collider(this.ennemi, plateformes);
+            this.mort = 0
+            this.compteur = 60
+            this.player.invincible = false
+            this.player.setCollideWorldBounds(true);
+            this.physics.world.setBounds(0, 0, 14880, 1088);
+            this.cameras.main.setBounds(0, 0, 14880, 1088);
+            this.cameras.main.startFollow(this.player); 
+
+            // création animation personnage
+
+                this.anims.create({
+                    key: 'front',
+                    frames: this.anims.generateFrameNumbers('persoDebut', {start:1,end:8}),
+                    frameRate: 10,
+                    repeat: -1
+            });
+                this.anims.create({
+                    key: 'back',
+                    frames: this.anims.generateFrameNumbers('persoDebut', {start:9,end:16}),
+                    frameRate: 10,
+                    repeat: -1
+            });
+                this.anims.create({
+                    key: 'right',
+                    frames: this.anims.generateFrameNumbers('persoDebut', {start:17,end:24}),
+                    frameRate: 10,
+                    repeat: -1
+            });
+                this.anims.create({
+                    key: 'left',
+                    frames: this.anims.generateFrameNumbers('persoDebut', {start:25,end:32}),
+                    frameRate: 10,
+                    repeat: -1
+                });
+                this.anims.create({
+                    key: 'turn',
+                    frames: [ { key: 'persoDebut', frame: 0 } ],
+                    frameRate: 20
+        });
+        // Animation Crayon
+        this.anims.create({
+                    key: 'frontcrayon',
+                    frames: this.anims.generateFrameNumbers('MonCrayon', {start:0,end:7}),
+                    frameRate: 10,
+                    repeat: -1
+            });
+                this.anims.create({
+                    key: 'backcrayon',
+                    frames: this.anims.generateFrameNumbers('MonCrayon', {start:8,end:15}),
+                    frameRate: 10,
+                    repeat: -1
+            });
+                this.anims.create({
+                    key: 'rightcrayon',
+                    frames: this.anims.generateFrameNumbers('MonCrayon', {start:24,end:31}),
+                    frameRate: 10,
+                    repeat: -1
+            });
+                this.anims.create({
+                    key: 'leftcrayon',
+                    frames: this.anims.generateFrameNumbers('MonCrayon', {start:16,end:23}),
+                    frameRate: 10,
+                    repeat: -1
+                });
+                this.anims.create({
+                    key: 'turncrayon',
+                    frames: [ { key: 'MonCrayon', frame: 0 } ],
+                    frameRate: 20
+        });
+        this.health = this.add.image(380, 200, 'Health100')
+        this.health.setScrollFactor(0);
+        
+        
+        this.cameras.main.zoom = 2;
+
+        }
+
+// Perdre HP
+
+
+        Touchplayer(player, ennemi){
+            player.setTint(0xff0000);
+            //player.scene.physics.pause();
+            if (!player.invincible){
+                player.anims.play('turn');
+                player.invincible = true;
+                if (player.scene.mort == 0){
+                    player.scene.mort += 1;
+                    player.scene.health.setTexture('Health75');
+                }
+                else if (player.scene.mort == 1){
+                    player.scene.mort += 1;
+                    player.scene.health.setTexture('Health50');
+                }
+                else if (player.scene.mort == 2){
+                    player.scene.mort += 1;
+                    player.scene.health.setTexture('Health25');
+                }
+                else if (player.scene.mort == 3){
+                    player.scene.mort += 1;
+                    player.scene.health.setTexture('Health0');
+                    this.physics.pause();
+                }
+                else{
+                    player.scene.health.setTexture('Health0');
+                    this.physics.pause();
+                }
+        }
+
+        
+            }
+        loose(player, ennemi){
+            this.physics.pause();
+            player.setTint(0xff0000);
+            player.anims.play('turn');
+            gameOver = true;
+            health.setTexture('Health0');
+            }
+        
+        update(){
+
+            if (this.player.invincible){
+                console.log('Bonjour je suis la console')
+                this.compteur -= 1;
+                if (this.compteur == 0){
+                    this.player.invincible = false;
+                    this.compteur = 60;
+                    this.player.setTint(0xffffff);
+                }
+            }
+
+        
+            if (this.cursors.left.isDown || this.clavier.Q.isDown){ //si la touche gauche est appuyée
+                this.player.setVelocityX(-160); //alors vitesse négative en X
+                this.player.anims.play('left', true); //et animation => gauche
+        }
+            else if (this.cursors.right.isDown || this.clavier.D.isDown){ //sinon si la touche droite est appuyée
+                this.player.setVelocityX(160); //alors vitesse positive en X
+                this.player.anims.play('right', true); //et animation => droite
+        }
+            else if (this.cursors.up.isDown || this.clavier.Z.isDown){ //sinon si la touche Haute est appuyée
+                this.player.setVelocityY(-160); //alors vitesse positive en Y
+                this.player.anims.play('back', true); //et animation => derrière
+        }
+            else if (this.cursors.down.isDown || this.clavier.S.isDown){ //sinon si la touche bas est appuyée
+                this.player.setVelocityY(160); //alors vitesse positive en X
+                this.player.anims.play('front', true); //et animation => devant
+        }
+            else{ // sinon
+                this.player.setVelocityX(0); //vitesse nulle
+                this.player.setVelocityY(0); //vitesse nulle
+                this.player.anims.play('turn'); //animation fait face caméra
+                
+        }
+        if (this.ennemi.x+3 < this.player.x-3){
+            this.ennemi.setVelocityX(50)
+            this.ennemi.anims.play('rightcrayon', true); //et animation => droite
+        }
+        if (this.ennemi.y-3 > this.player.y+3){
+                this.ennemi.setVelocityY(-50)
+                this.ennemi.anims.play('backcrayon', true); //et animation => derrière
+            }
+        if (this.ennemi.x-3 > this.player.x+3){
+            this.ennemi.setVelocityX(-50)
+            this.ennemi.anims.play('leftcrayon', true); //et animation => gauche
+        }
+        if (this.ennemi.y+3 < this.player.y-3){
+                this.ennemi.setVelocityY(50)
+                this.ennemi.anims.play('frontcrayon', true); //et animation => devant
+            }
+        
+
+    }
+        changeScene(player, trigger){
+            if ( this.mort == 0 ){
+                this.scene.start("Salledeclasse", { mort : 0});
+                }
+            else if ( this.mort == 1 ){
+                this.scene.start("Salledeclasse", { mort : 1});
+                }
+            else if ( this.mort == 2 ){
+                this.scene.start("Salledeclasse", { mort : 2});
+                }
+            else if ( this.mort == 3 ){
+                this.scene.start("Salledeclasse", { mort : 3});
+                }
+    }
+}
+
+    
+
+// ****************************************************************************************************
+// ****************************************************************************************************
+// ****************************************************************************************************
+// *******************************Passage à la scene de classe*****************************************
+// ****************************************************************************************************
+// ****************************************************************************************************
+// ****************************************************************************************************
+// ****************************************************************************************************
+
+
+        class Salledeclasse extends Phaser.Scene{
+            constructor(){
+                super("Salledeclasse");
+        }
+        preload(){
+
+
+            this.load.image("jeudetuileclasse", "assets/Salle_De_Classe_Collisions.png");
+            this.load.image("Tuiles_sol", "assets/Tuiles_sol.png");
+            // J'importe mes images de barre de vie
+            this.load.image("Health100", "assets/Health100.png");
+            this.load.image("Health75", "assets/Health75.png");
+            this.load.image("Health50", "assets/Health50.png");
+            this.load.image("Health25", "assets/Health25.png");
+            this.load.image("Health0", "assets/Health0.png");
+            // J'importe mes images d'inventaire
+            this.load.image("Coin0", "assets/Coin0.png")
+            this.load.image("Coin1", "assets/Coin1.png")
+            this.load.image("Coin2", "assets/Coin2.png")
+            this.load.image("Coin3", "assets/Coin3.png")
+            
+            this.load.tilemapTiledJSON("carteclasse", "interieurecole.json");  
+            
+            this.load.spritesheet('persoDebut','assets/Spritesheet_Cahier_Prototype.png',
+            { frameWidth: 40, frameHeight: 40 });
+            }
+        
+        
+        
+        
+        create (){
+        
+        this.clavier = this.input.keyboard.addKeys('Z,Q,S,D');
+        this.cursors = this.input.keyboard.createCursorKeys(); 
+        
+        const carteDeClasse = this.add.tilemap("carteclasse");
+        
+        // importer les TileSet 
+        const Salle_De_Classe_Collisions = carteDeClasse.addTilesetImage(
+                "Salle_De_Classe_Collisions",
+                "jeudetuileclasse"
+                );  
+                
+        const Tuiles_sol = carteDeClasse.createLayer(
+                "Soldeclasse",
+                Salle_De_Classe_Collisions, 
+                ); 
+        
+        const Collisionsdeclasse = carteDeClasse.createLayer(
+                "Collisions",
+                Salle_De_Classe_Collisions, 
+                ); 
+
+        const Teleportationtrou = carteDeClasse.createLayer(
+            "Teleportationtrou",
+            Salle_De_Classe_Collisions, 
+                ); 
+/*
+        const Teleportationlabyrinthe = carteDeClasse.createLayer(
+            "Teleportationlabyrinthe",
+            Salle_De_Classe_Collisions, 
+                ); 
+*/        
+        
+        
+        this.player = this.physics.add.sprite(400,400,'persoDebut')    //1230 , 100    700, 570
+        
+        Collisionsdeclasse.setCollisionByProperty({ Solide: true });
+        this.compteur = 60
+        this.player.invincible = false
+
+        Teleportationtrou.setCollisionByExclusion(-1, true);
+        this.physics.add.collider(this.player, Teleportationtrou, this.changeScenetotrou, null, this);
+/*        Teleportationlabyrinthe.setCollisionByExclusion(-1, true);
+        this.physics.add.collider(this.player, Teleportationlabyrinthe, this.changeScenetolabyrinthe, null, this);
+ */       
+        this.physics.add.collider(this.player, Collisionsdeclasse);
+        this.health = this.add.image(380, 200, 'Health100')
+        this.health.setScrollFactor(0);
+
+ 
+
+           
+            this.cameras.main.zoom = 2;
+            this.physics.world.setBounds(0, 0, 14880, 1088);
+            this.cameras.main.setBounds(0, 0, 14880, 1088);
+            this.cameras.main.startFollow(this.player); 
+
+            // création animation personnage
+
+                this.anims.create({
+                    key: 'front',
+                    frames: this.anims.generateFrameNumbers('persoDebut', {start:1,end:8}),
+                    frameRate: 10,
+                    repeat: -1
+            });
+                this.anims.create({
+                    key: 'back',
+                    frames: this.anims.generateFrameNumbers('persoDebut', {start:9,end:16}),
+                    frameRate: 10,
+                    repeat: -1
+            });
+                this.anims.create({
+                    key: 'right',
+                    frames: this.anims.generateFrameNumbers('persoDebut', {start:17,end:24}),
+                    frameRate: 10,
+                    repeat: -1
+            });
+                this.anims.create({
+                    key: 'left',
+                    frames: this.anims.generateFrameNumbers('persoDebut', {start:25,end:32}),
+                    frameRate: 10,
+                    repeat: -1
+                });
+                this.anims.create({
+                    key: 'turn',
+                    frames: [ { key: 'persoDebut', frame: 0 } ],
+                    frameRate: 20
+            });
+                
+        }
+        Touchplayer(player, ennemi){
+            player.setTint(0xff0000);
+            //player.scene.physics.pause();
+            if (!player.invincible){
+                player.anims.play('turn');
+                player.invincible = true;
+                if (player.scene.mort == 0){
+                    player.scene.mort += 1;
+                    player.scene.health.setTexture('Health75');
+                }
+                else if (player.scene.mort == 1){
+                    player.scene.mort += 1;
+                    player.scene.health.setTexture('Health50');
+                }
+                else if (player.scene.mort == 2){
+                    player.scene.mort += 1;
+                    player.scene.health.setTexture('Health25');
+                }
+                else if (player.scene.mort == 3){
+                    player.scene.mort += 1;
+                    player.scene.health.setTexture('Health0');
+                    this.physics.pause();
+                }
+                else{
+                    player.scene.health.setTexture('Health0');
+                    this.physics.pause();
+                }
+        }
+    }   
+            update(){
+                //ici le code de la fonction update
+                
+            if (this.player.invincible){
+                console.log('Bonjour je suis la console')
+                this.compteur -= 1;
+                if (this.compteur == 0){
+                    this.player.invincible = false;
+                    this.compteur = 60;
+                    this.player.setTint(0xffffff);
+                }
+            }
+                
+                
+        
+            if (this.cursors.left.isDown || this.clavier.Q.isDown){ //si la touche gauche est appuyée
+                this.player.setVelocityX(-160); //alors vitesse négative en X
+                this.player.anims.play('left', true); //et animation => gauche
+        }
+            else if (this.cursors.right.isDown || this.clavier.D.isDown){ //sinon si la touche droite est appuyée
+                this.player.setVelocityX(160); //alors vitesse positive en X
+                this.player.anims.play('right', true); //et animation => droite
+        }
+            else if (this.cursors.up.isDown || this.clavier.Z.isDown){ //sinon si la touche Haute est appuyée
+                this.player.setVelocityY(-160); //alors vitesse positive en Y
+                this.player.anims.play('back', true); //et animation => derrière
+        }
+            else if (this.cursors.down.isDown || this.clavier.S.isDown){ //sinon si la touche bas est appuyée
+                this.player.setVelocityY(160); //alors vitesse positive en X
+                this.player.anims.play('front', true); //et animation => devant
+        }
+            else{ // sinon
+                this.player.setVelocityX(0); //vitesse nulle
+                this.player.setVelocityY(0); //vitesse nulle
+                this.player.anims.play('turn'); //animation fait face caméra
+        
+        }}
+        changeScenetotrou(player, trigger){
+                this.scene.start("Troudesouris");
+                }
+        changeScenetolabyrinthe(player, trigger){
+                this.scene.start("Labyrinthe");
+                }
+        
+    };
+
+// ****************************************************************************************************
+// ****************************************************************************************************
+// ****************************************************************************************************
+// *******************************Passage dans le trou de souris***************************************
+// ****************************************************************************************************
+// ****************************************************************************************************
+// ****************************************************************************************************
+// ****************************************************************************************************
+
+
+class Troudesouris extends Phaser.Scene{
+            constructor(){
+                super("Troudesouris");
+        }
+        preload(){
+
+            this.load.image("jeudetuiletrou", "assets/Trou_souris_tileset.png");
+            this.load.image("Trou_souris_sol", "assets/Trou_souris_sol.png");
+            this.load.image("Coffreclose", "assets/Coffreclose.png")
+            this.load.image("Coffreopen", "assets/Coffreopen.png")
+            // J'importe mes images de barre de vie
+            this.load.image("Health100", "assets/Health100.png");
+            this.load.image("Health75", "assets/Health75.png");
+            this.load.image("Health50", "assets/Health50.png");
+            this.load.image("Health25", "assets/Health25.png");
+            this.load.image("Health0", "assets/Health0.png");
+            // J'importe mes images d'inventaire
+            this.load.image("Coin", "assets/Coin.png")
+            this.load.image("Coin0", "assets/Coin0.png")
+            this.load.image("Coin1", "assets/Coin1.png")
+            this.load.image("Coin2", "assets/Coin2.png")
+            this.load.image("Coin3", "assets/Coin3.png")
+            
+            this.load.tilemapTiledJSON("trousouris", "trousouris.json");  
+            
+            this.load.spritesheet('persoDebut','assets/Spritesheet_Cahier_Prototype.png',
+            { frameWidth: 40, frameHeight: 40 });
+            this.load.spritesheet('MonCrayon', 'assets/Animation_Crayon_Spritesheet.png',
+            { frameWidth: 32 ,frameHeight: 48 });
+        
+
+            
+            }
+            
+        
+        
+        
+        
+        create (){
+        
+        this.clavier = this.input.keyboard.addKeys('Z,Q,S,D');
+        this.cursors = this.input.keyboard.createCursorKeys(); 
+        
+        const carteDeTrou = this.add.tilemap("trousouris");
+        
+        // importer les TileSet 
+        const Trou_souris_tileset = carteDeTrou.addTilesetImage(
+                "Trou_souris_tileset",
+                "jeudetuiletrou"
+                );  
+                
+        const Trou_souris_sol = carteDeTrou.createLayer(
+                "Sol",
+                Trou_souris_tileset, 
+                ); 
+        
+        const Collisionsdetrou = carteDeTrou.createLayer(
+                "Collisiontrou",
+                Trou_souris_tileset, 
+                ); 
+
+        const teleportation = carteDeTrou.createLayer(
+                "teleportation",
+                Trou_souris_tileset, 
+                ); 
+
+        
+        
+        
+        this.player = this.physics.add.sprite(730,390,'persoDebut')    //1230 , 100    700, 570
+        this.ennemi = this.physics.add.sprite(350,110,'MonCrayon')
+        this.mort = 0
+        this.compteur = 60
+        this.player.invincible = false
+        Collisionsdetrou.setCollisionByProperty({ jesuisSolide: true });
+
+        teleportation.setCollisionByExclusion(-1, true);
+        this.physics.add.collider(this.player, teleportation, this.changeScene, null, this);
+
+// ****************************************************************************************************
+// *******************************Définition de mon coffre*********************************************
+// ****************************************************************************************************
+
+        this.coffre = this.physics.add.staticImage(60, 60, 'Coffreclose')  //432, 352
+        this.physics.add.collider(this.player, this.coffre, this.changeCoffre);
+        
+        this.physics.add.collider(this.player, Collisionsdetrou);
+        this.physics.add.collider(this.player, this.ennemi, this.Touchplayer);
+        this.physics.add.collider(this.ennemi, Collisionsdetrou);
+        this.health = this.add.image(480, 260, 'Health100')
+        this.health.setScrollFactor(0);
+        
+        this.coin = this.add.image(450, 290, 'Coin0')
+        this.coin.setScrollFactor(0);
+        this.physics.add.collider(this.coffre, this.coin);
+        this.physics.add.collider(this.player, this.Coin, this.collectCoin);
+        
+
+
+            this.cameras.main.zoom = 3;
+            this.physics.world.setBounds(0, 0, 14880, 1088);
+            this.cameras.main.setBounds(0, 0, 14880, 1088);
+            this.player.setCollideWorldBounds(true);
+            this.cameras.main.startFollow(this.player); 
+
+            // création animation personnage
+
+                this.anims.create({
+                    key: 'front',
+                    frames: this.anims.generateFrameNumbers('persoDebut', {start:1,end:8}),
+                    frameRate: 10,
+                    repeat: -1
+            });
+                this.anims.create({
+                    key: 'back',
+                    frames: this.anims.generateFrameNumbers('persoDebut', {start:9,end:16}),
+                    frameRate: 10,
+                    repeat: -1
+            });
+                this.anims.create({
+                    key: 'right',
+                    frames: this.anims.generateFrameNumbers('persoDebut', {start:17,end:24}),
+                    frameRate: 10,
+                    repeat: -1
+            });
+                this.anims.create({
+                    key: 'left',
+                    frames: this.anims.generateFrameNumbers('persoDebut', {start:25,end:32}),
+                    frameRate: 10,
+                    repeat: -1
+                });
+                this.anims.create({
+                    key: 'turn',
+                    frames: [ { key: 'persoDebut', frame: 0 } ],
+                    frameRate: 20
+            });
+        if (this.ennemi.x+3 < this.player.x-3){
+            this.ennemi.setVelocityX(50)
+            this.ennemi.anims.play('rightcrayon', true); //et animation => droite
+        }
+        if (this.ennemi.y-3 > this.player.y+3){
+                this.ennemi.setVelocityY(-50)
+                this.ennemi.anims.play('backcrayon', true); //et animation => derrière
+            }
+        if (this.ennemi.x-3 > this.player.x+3){
+            this.ennemi.setVelocityX(-50)
+            this.ennemi.anims.play('leftcrayon', true); //et animation => gauche
+        }
+        if (this.ennemi.y+3 < this.player.y-3){
+                this.ennemi.setVelocityY(50)
+                this.ennemi.anims.play('frontcrayon', true); //et animation => devant
+            }
+                
+        }
+        Touchplayer(player, ennemi){
+            player.setTint(0xff0000);
+            //player.scene.physics.pause();
+            if (!player.invincible){
+                player.anims.play('turn');
+                player.invincible = true;
+                if (player.scene.mort == 0){
+                    player.scene.mort += 1;
+                    player.scene.health.setTexture('Health75');
+                }
+                else if (player.scene.mort == 1){
+                    player.scene.mort += 1;
+                    player.scene.health.setTexture('Health50');
+                }
+                else if (player.scene.mort == 2){
+                    player.scene.mort += 1;
+                    player.scene.health.setTexture('Health25');
+                }
+                else if (player.scene.mort == 3){
+                    player.scene.mort += 1;
+                    player.scene.health.setTexture('Health0');
+                    this.physics.pause();
+                }
+                else{
+                    player.scene.health.setTexture('Health0');
+                    this.physics.pause();
+                }
+        }
+    }   
+            update(){
+                //ici le code de la fonction update
+            if (this.player.invincible){
+                console.log('Bonjour je suis la console')
+                this.compteur -= 1;
+                if (this.compteur == 0){
+                    this.player.invincible = false;
+                    this.compteur = 60;
+                    this.player.setTint(0xffffff);
+                }
+            }
+                
+        
+            if (this.cursors.left.isDown || this.clavier.Q.isDown){ //si la touche gauche est appuyée
+                this.player.setVelocityX(-160); //alors vitesse négative en X
+                this.player.anims.play('left', true); //et animation => gauche
+        }
+            else if (this.cursors.right.isDown || this.clavier.D.isDown){ //sinon si la touche droite est appuyée
+                this.player.setVelocityX(160); //alors vitesse positive en X
+                this.player.anims.play('right', true); //et animation => droite
+        }
+            else if (this.cursors.up.isDown || this.clavier.Z.isDown){ //sinon si la touche Haute est appuyée
+                this.player.setVelocityY(-160); //alors vitesse positive en Y
+                this.player.anims.play('back', true); //et animation => derrière
+        }
+            else if (this.cursors.down.isDown || this.clavier.S.isDown){ //sinon si la touche bas est appuyée
+                this.player.setVelocityY(160); //alors vitesse positive en X
+                this.player.anims.play('front', true); //et animation => devant
+        }
+            else{ // sinon
+                this.player.setVelocityX(0); //vitesse nulle
+                this.player.setVelocityY(0); //vitesse nulle
+                this.player.anims.play('turn'); //animation fait face caméra
+                
+        }
+        if (this.ennemi.x+3 < this.player.x-3){
+            this.ennemi.setVelocityX(50)
+            this.ennemi.anims.play('rightcrayon', true); //et animation => droite
+        }
+        if (this.ennemi.y-3 > this.player.y+3){
+                this.ennemi.setVelocityY(-50)
+                this.ennemi.anims.play('backcrayon', true); //et animation => derrière
+            }
+        if (this.ennemi.x-3 > this.player.x+3){
+            this.ennemi.setVelocityX(-50)
+            this.ennemi.anims.play('leftcrayon', true); //et animation => gauche
+        }
+        if (this.ennemi.y+3 < this.player.y-3){
+                this.ennemi.setVelocityY(50)
+                this.ennemi.anims.play('frontcrayon', true); //et animation => devant
+        }}
+        changeCoffre(player, trigger){
+            player.scene.coffre.setTexture('Coffreopen');
+            this.Coin = player.scene.physics.add.staticImage(60, 100, 'Coin').setScale(0.5)
+        }
+        changeScene(player, trigger){
+                this.scene.start("Sallerenversee", {x : 120, y : 120});
+                }
+
+        //Lorsque la pièce est collectée, on fait disparaître la pièce
+
+        collectCoin(player, Coin){
+            player.scene.Coin.disableBody(true, true);
+            player.scene.coin.setTexture('Coin1');
+
+
+        }
+        
+    };
+
+
+
+// ****************************************************************************************************
+// ****************************************************************************************************
+// ****************************************************************************************************
+// *******************************Passage dans la salle renversee**************************************
+// ****************************************************************************************************
+// ****************************************************************************************************
+// ****************************************************************************************************
+// ****************************************************************************************************
+
+
+class Sallerenversee extends Phaser.Scene{
+            constructor(){
+                super("Sallerenversee");
+        }
+        preload(){
+
+            this.load.image("jeudetuilerenversee", "assets/renversee_tileset.png");
+            this.load.image("renversee_sol", "assets/renversee_sol.png");
+            // J'importe mes images de barre de vie
+            this.load.image("Health100", "assets/Health100.png");
+            this.load.image("Health75", "assets/Health75.png");
+            this.load.image("Health50", "assets/Health50.png");
+            this.load.image("Health25", "assets/Health25.png");
+            this.load.image("Health0", "assets/Health0.png");
+            // J'importe mes images d'inventaire
+            this.load.image("Coin0", "assets/Coin0.png")
+            this.load.image("Coin1", "assets/Coin1.png")
+            this.load.image("Coin2", "assets/Coin2.png")
+            this.load.image("Coin3", "assets/Coin3.png")
+            
+            this.load.tilemapTiledJSON("renversee", "renversee.json");  
+            
+            this.load.spritesheet('persoDebut','assets/Spritesheet_Cahier_Prototype.png',
+            { frameWidth: 40, frameHeight: 40 });
+            }
+        
+        
+        
+        
+        create (){
+        
+        this.clavier = this.input.keyboard.addKeys('Z,Q,S,D');
+        this.cursors = this.input.keyboard.createCursorKeys(); 
+        
+        const carteDeRenversee = this.add.tilemap("renversee");
+        
+        // importer les TileSet 
+        const renversee_tileset = carteDeRenversee.addTilesetImage(
+                "renversee_tileset",
+                "jeudetuilerenversee"
+                );  
+                
+        const renversee_sol = carteDeRenversee.createLayer(
+                "Sol",
+                renversee_tileset, 
+                ); 
+        
+        const Collisionsrenversee = carteDeRenversee.createLayer(
+                "Collisionsrenversee",
+                renversee_tileset, 
+                ); 
+
+        const teleportationlabyrinthe = carteDeRenversee.createLayer(
+                "teleportationlabyrinthe",
+                renversee_tileset, 
+                ); 
+
+        
+        
+
+        
+        
+        
+        this.player = this.physics.add.sprite(100,250,'persoDebut')    //1230 , 100    700, 570
+        
+        Collisionsrenversee.setCollisionByProperty({ renverseeSolide: true });
+        
+        teleportationlabyrinthe.setCollisionByExclusion(-1, true);
+        this.physics.add.collider(this.player, teleportationlabyrinthe, this.changeScene, null, this);
+        
+        this.physics.add.collider(this.player, Collisionsrenversee);
+        
+
+ 
+
+            this.health = this.add.image(380, 200, 'Health100')
+            this.health.setScrollFactor(0);
+            this.cameras.main.zoom = 2;
+            this.physics.world.setBounds(0, 0, 14880, 1088);
+            this.cameras.main.setBounds(0, 0, 14880, 1088);
+            this.cameras.main.startFollow(this.player); 
+
+            // création animation personnage
+
+                this.anims.create({
+                    key: 'front',
+                    frames: this.anims.generateFrameNumbers('persoDebut', {start:1,end:8}),
+                    frameRate: 10,
+                    repeat: -1
+            });
+                this.anims.create({
+                    key: 'back',
+                    frames: this.anims.generateFrameNumbers('persoDebut', {start:9,end:16}),
+                    frameRate: 10,
+                    repeat: -1
+            });
+                this.anims.create({
+                    key: 'right',
+                    frames: this.anims.generateFrameNumbers('persoDebut', {start:17,end:24}),
+                    frameRate: 10,
+                    repeat: -1
+            });
+                this.anims.create({
+                    key: 'left',
+                    frames: this.anims.generateFrameNumbers('persoDebut', {start:25,end:32}),
+                    frameRate: 10,
+                    repeat: -1
+                });
+                this.anims.create({
+                    key: 'turn',
+                    frames: [ { key: 'persoDebut', frame: 0 } ],
+                    frameRate: 20
+            });
+                
+        }   
+            update(){
+                //ici le code de la fonction update
+                
+        
+                if (this.cursors.left.isDown || this.clavier.Q.isDown){ //si la touche gauche est appuyée
+                this.player.setVelocityX(-160); //alors vitesse négative en X
+                this.player.anims.play('left', true); //et animation => gauche
+        }
+            else if (this.cursors.right.isDown || this.clavier.D.isDown){ //sinon si la touche droite est appuyée
+                this.player.setVelocityX(160); //alors vitesse positive en X
+                this.player.anims.play('right', true); //et animation => droite
+        }
+            else if (this.cursors.up.isDown || this.clavier.Z.isDown){ //sinon si la touche Haute est appuyée
+                this.player.setVelocityY(-160); //alors vitesse positive en Y
+                this.player.anims.play('back', true); //et animation => derrière
+        }
+            else if (this.cursors.down.isDown || this.clavier.S.isDown){ //sinon si la touche bas est appuyée
+                this.player.setVelocityY(160); //alors vitesse positive en X
+                this.player.anims.play('front', true); //et animation => devant
+        }
+            else{ // sinon
+                this.player.setVelocityX(0); //vitesse nulle
+                this.player.setVelocityY(0); //vitesse nulle
+                this.player.anims.play('turn'); //animation fait face caméra
+        }}
+
+        changeScene(player, trigger){
+                this.scene.start("Labyrinthe");
+                }
+
+        
+    };
+
+// ****************************************************************************************************
+// ****************************************************************************************************
+// ****************************************************************************************************
+// *******************************Passage dans le labyrinthe*******************************************
+// ****************************************************************************************************
+// ****************************************************************************************************
+// ****************************************************************************************************
+// ****************************************************************************************************
+
+
+class Labyrinthe extends Phaser.Scene{
+            constructor(){
+                super("Labyrinthe");
+        }
+        preload(){
+
+            this.load.image("jeudetuilelabyrinthe", "assets/Labyrinthe_tileset.png");
+            this.load.image("Labyrinthe_sol", "assets/Labyrinthe_sol.png");
+        // J'importe mes images de barre de vie
+            this.load.image("Health100", "assets/Health100.png");
+            this.load.image("Health75", "assets/Health75.png");
+            this.load.image("Health50", "assets/Health50.png");
+            this.load.image("Health25", "assets/Health25.png");
+            this.load.image("Health0", "assets/Health0.png");
+            // J'importe mes images d'inventaire
+            this.load.image("Coin0", "assets/Coin0.png")
+            this.load.image("Coin1", "assets/Coin1.png")
+            this.load.image("Coin2", "assets/Coin2.png")
+            this.load.image("Coin3", "assets/Coin3.png")
+            
+            this.load.tilemapTiledJSON("labyrinthemap", "labyrinthemap.json");  
+            
+            this.load.spritesheet('persoDebut','assets/Spritesheet_Cahier_Prototype.png',
+            { frameWidth: 40, frameHeight: 40 });
+            
+            this.load.spritesheet('MonCrayon', 'assets/Animation_Crayon_Spritesheet.png',
+            { frameWidth: 32 ,frameHeight: 48 });
+        }
+        
+        
+        
+        
+        
+        create (){
+        
+        this.clavier = this.input.keyboard.addKeys('Z,Q,S,D');
+        this.cursors = this.input.keyboard.createCursorKeys(); 
+        
+        const carteDeLabyrinthe = this.add.tilemap("labyrinthemap");
+        
+        // importer les TileSet 
+        const Labyrinthe_tileset = carteDeLabyrinthe.addTilesetImage(
+                "Labyrinthe_tileset",
+                "jeudetuilelabyrinthe"
+                );  
+                
+        const Labyrinthe_sol = carteDeLabyrinthe.createLayer(
+                "Labyrinthesol",
+                Labyrinthe_tileset, 
+                ); 
+        
+        const Collisionsdelabyrinthe = carteDeLabyrinthe.createLayer(
+                "Labyrinthecollision",
+                Labyrinthe_tileset, 
+                ); 
+
+            const tptoend = carteDeLabyrinthe.createLayer(
+                    "tptoend",
+                    Labyrinthe_tileset, 
+                 ); 
+
+        
+        
+        
+        
+        this.player = this.physics.add.sprite(80,420,'persoDebut')    //1230 , 100    700, 570
+        this.ennemi = this.physics.add.sprite(600,100,'MonCrayon')
+        this.physics.add.collider(this.player, this.ennemi, this.Touchplayer);
+        this.physics.add.collider(this.ennemi, Collisionsdelabyrinthe);
+        this.mort = 0
+        this.compteur = 60
+        this.player.invincible = false
+        
+        Collisionsdelabyrinthe.setCollisionByProperty({ etreSolide: true });
+
+        
+        this.physics.add.collider(this.player, Collisionsdelabyrinthe);
+
+ 
+        tptoend.setCollisionByExclusion(-1, true);
+        this.physics.add.collider(this.player, tptoend, this.changeScene, null, this);
+        this.health = this.add.image(480, 260, 'Health100')
+        this.health.setScrollFactor(0);
+            this.cameras.main.zoom = 3;
+            this.physics.world.setBounds(0, 0, 14880, 1088);
+            this.cameras.main.setBounds(0, 0, 14880, 1088);
+            this.cameras.main.startFollow(this.player); 
+
+            // création animation personnage
+
+                this.anims.create({
+                    key: 'front',
+                    frames: this.anims.generateFrameNumbers('persoDebut', {start:1,end:8}),
+                    frameRate: 10,
+                    repeat: -1
+            });
+                this.anims.create({
+                    key: 'back',
+                    frames: this.anims.generateFrameNumbers('persoDebut', {start:9,end:16}),
+                    frameRate: 10,
+                    repeat: -1
+            });
+                this.anims.create({
+                    key: 'right',
+                    frames: this.anims.generateFrameNumbers('persoDebut', {start:17,end:24}),
+                    frameRate: 10,
+                    repeat: -1
+            });
+                this.anims.create({
+                    key: 'left',
+                    frames: this.anims.generateFrameNumbers('persoDebut', {start:25,end:32}),
+                    frameRate: 10,
+                    repeat: -1
+                });
+                this.anims.create({
+                    key: 'turn',
+                    frames: [ { key: 'persoDebut', frame: 0 } ],
+                    frameRate: 20
+            });
+
+                
+        }   
+        Touchplayer(player, ennemi){
+            player.setTint(0xff0000);
+            //player.scene.physics.pause();
+            if (!player.invincible){
+                player.anims.play('turn');
+                player.invincible = true;
+                if (player.scene.mort == 0){
+                    player.scene.mort += 1;
+                    player.scene.health.setTexture('Health75');
+                }
+                else if (player.scene.mort == 1){
+                    player.scene.mort += 1;
+                    player.scene.health.setTexture('Health50');
+                }
+                else if (player.scene.mort == 2){
+                    player.scene.mort += 1;
+                    player.scene.health.setTexture('Health25');
+                }
+                else if (player.scene.mort == 3){
+                    player.scene.mort += 1;
+                    player.scene.health.setTexture('Health0');
+                    this.physics.pause();
+                }
+                else{
+                    player.scene.health.setTexture('Health0');
+                    this.physics.pause();
+                }
+        }
+
+        
+            }
+            update(){
+                //ici le code de la fonction update
+            if (this.player.invincible){
+                console.log('Bonjour je suis la console')
+                this.compteur -= 1;
+                if (this.compteur == 0){
+                    this.player.invincible = false;
+                    this.compteur = 60;
+                    this.player.setTint(0xffffff);
+                }
+            }
+            if (this.ennemi.x+3 < this.player.x-3){
+            this.ennemi.setVelocityX(50)
+            this.ennemi.anims.play('rightcrayon', true); //et animation => droite
+        }
+        if (this.ennemi.y-3 > this.player.y+3){
+                this.ennemi.setVelocityY(-50)
+                this.ennemi.anims.play('backcrayon', true); //et animation => derrière
+            }
+        if (this.ennemi.x-3 > this.player.x+3){
+            this.ennemi.setVelocityX(-50)
+            this.ennemi.anims.play('leftcrayon', true); //et animation => gauche
+        }
+        if (this.ennemi.y+3 < this.player.y-3){
+                this.ennemi.setVelocityY(50)
+                this.ennemi.anims.play('frontcrayon', true); //et animation => devant
+            
+        
+
+    }
+                
+        
+                if (this.cursors.left.isDown || this.clavier.Q.isDown){ //si la touche gauche est appuyée
+                this.player.setVelocityX(-160); //alors vitesse négative en X
+                this.player.anims.play('left', true); //et animation => gauche
+        }
+            else if (this.cursors.right.isDown || this.clavier.D.isDown){ //sinon si la touche droite est appuyée
+                this.player.setVelocityX(160); //alors vitesse positive en X
+                this.player.anims.play('right', true); //et animation => droite
+        }
+            else if (this.cursors.up.isDown || this.clavier.Z.isDown){ //sinon si la touche Haute est appuyée
+                this.player.setVelocityY(-160); //alors vitesse positive en Y
+                this.player.anims.play('back', true); //et animation => derrière
+        }
+            else if (this.cursors.down.isDown || this.clavier.S.isDown){ //sinon si la touche bas est appuyée
+                this.player.setVelocityY(160); //alors vitesse positive en X
+                this.player.anims.play('front', true); //et animation => devant
+        }
+            else{ // sinon
+                this.player.setVelocityX(0); //vitesse nulle
+                this.player.setVelocityY(0); //vitesse nulle
+                this.player.anims.play('turn'); //animation fait face caméra
+
+                
+        }
+    }
+    
+        changeScene(player, trigger){
+                this.scene.start("end");
+                }
+        
+    };
+
+    class end extends Phaser.Scene{
+            constructor() {
+                super("end");
+            }
+            preload(){
+                this.load.image('endimg', 'assets/end.png')
+            }
+            create (){
+                this.add.image(240, 170, 'endimg');
+
+            }
+            update(){
+
+            }
+        };
+
+
+
+
+    var config = {
+            pixelArt: true,
+            type: Phaser.AUTO,
+            width: 1280, height: 720,
+            physics: {
+            default: 'arcade',
+            arcade: {
+            gravity: { y: 0 },
+            debug: false
+            }},
+            scene: [menu,Exterieur,Salledeclasse,Troudesouris,Sallerenversee,Labyrinthe,end],
+            input : {gamepad:true},
+            };
+            
+
+            new Phaser.Game(config);  
+
+        
+/*
+            this.input.gamepad.once('connected', function (pad) {
+                this.paddle = pad;
+                this.padConnected = true;
+            });    
+
+            // quand la manette est connectée, les touches manettes sont activées
+            if (this.padConnected) {
+                moveUp = (cursors.up.isDown || this.keys.z.isDown ||  this.paddle.up || this.paddle.A)  
+                moveLeft = (cursors.left.isDown || this.keys.q.isDown ||this.paddle.left)  
+                moveRight = (cursors.right.isDown || this.keys.d.isDown || this.paddle.right)
+            }
+            // quand la manette n'est pas connectée, les touches manettes ne sont pas activées
+            else{
+                moveUp = (cursors.up.isDown || this.keys.z.isDown )  
+                moveLeft = (cursors.left.isDown || this.keys.q.isDown )  
+                moveRight = (cursors.right.isDown || this.keys.d.isDown ) 
+            }
+
+                    if (moveUp && player.body.blocked.down ) {
+                    player.setVelocityY(-400);
+                    }  
+                    if (moveLeft){ 
+                        player.direction = 'left';
+                        player.setVelocityX(-120); 
+                        player.anims.play('leftTir', true);
+                    }
+                    else if (moveRight){ 
+                        player.direction = 'right';
+                        player.setVelocityX(120);
+                        player.anims.play('rightTir', true);
+                    }
+                    else{ 
+                        player.setVelocityX(0); 
+                        player.anims.play('turnTir');
+                    }
+        
+*/
+      
+    </script>
+</body>
+</html>
